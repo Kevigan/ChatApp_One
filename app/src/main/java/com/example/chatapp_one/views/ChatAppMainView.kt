@@ -1,5 +1,7 @@
 package com.example.chatapp_one.views
 
+import android.content.Intent
+import androidx.activity.result.ActivityResultLauncher
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.AlertDialog
 import androidx.compose.material.BottomAppBar
 import androidx.compose.material.Divider
 import androidx.compose.material.FabPosition
@@ -21,26 +24,77 @@ import androidx.compose.material.FloatingActionButton
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.example.chatapp_one.R
+import com.example.chatapp_one.Screen
+import com.example.chatapp_one.viewModels.SessionViewModel
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
 
 @Composable
-fun ChatAppMainView() {
+fun ChatAppMainView(
+    sessionViewModel: SessionViewModel,
+    navController: NavController,
+    googleSignInClient: GoogleSignInClient,
+    googleSignInLauncher: ActivityResultLauncher<Intent>,
+) {
+    val currentUser by sessionViewModel.currentUser.collectAsState()
+    val showLoginDialog = remember { mutableStateOf(currentUser == null) }
+
+    // Watch for auth changes to control login dialog
+    LaunchedEffect(currentUser) {
+        showLoginDialog.value = currentUser == null
+    }
+
+    if (showLoginDialog.value) {
+        LoginDialog(
+            onLoginSuccess = { showLoginDialog.value = false },
+            onDismiss = { },
+            sessionViewModel = sessionViewModel,
+            googleSignInClient = googleSignInClient,
+            launcher = googleSignInLauncher
+        )
+    }
+
+    val showAddFriendDialog = remember { mutableStateOf(false) }
+
+    if (showAddFriendDialog.value) {
+        AddFriendDialog(
+            onAddFriend = { email ->
+                // TODO: handle adding friend (Firebase lookup etc.)
+                showAddFriendDialog.value = false
+            },
+            onDismiss = { showAddFriendDialog.value = false }
+        )
+    }
+
     Scaffold(
         topBar = { ChatAppTopBar() },
-        bottomBar = { ChatAppBottomBar() },
+        bottomBar = {
+            ChatAppBottomBar(
+                navController,
+                onAddFriendClicked = { showAddFriendDialog.value = true }
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = { /* TODO: Start new chat */ }) {
                 Icon(Icons.Default.Add, contentDescription = "New Chat")
@@ -62,7 +116,10 @@ fun ChatAppTopBar() {
 }
 
 @Composable
-fun ChatAppBottomBar() {
+fun ChatAppBottomBar(
+    navController: NavController,
+    onAddFriendClicked: () -> Unit,
+) {
     BottomAppBar(
         modifier = Modifier
             .fillMaxWidth()
@@ -73,13 +130,14 @@ fun ChatAppBottomBar() {
                 .fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceAround
         ) {
-            BottomBarButton("Add Friend", R.drawable.baseline_person_add_24) { }
-            BottomBarButton("Create Group", R.drawable.baseline_group_add_24) { }
-            BottomBarButton("Friends", R.drawable.baseline_people_24) { }
-            BottomBarButton("Settings", R.drawable.baseline_settings_24) { }
+            BottomBarButton("Add Friend", R.drawable.baseline_person_add_24, onClick = onAddFriendClicked)
+            BottomBarButton("Friends", R.drawable.baseline_people_24, onClick = {navController.navigate(Screen.FriendsScreen.route)})
+            BottomBarButton("Settings", R.drawable.baseline_settings_24, onClick = { navController.navigate(Screen.SettingsScreen.route) })
+            BottomBarButton("Account", R.drawable.baseline_group_add_24, onClick = { navController.navigate(Screen.AccountScreen.route) })
         }
     }
 }
+
 
 @Composable
 fun BottomBarButton(label: String, @DrawableRes iconRes: Int, onClick: () -> Unit) {
@@ -96,8 +154,6 @@ fun BottomBarButton(label: String, @DrawableRes iconRes: Int, onClick: () -> Uni
         Text(text = label, fontSize = 10.sp)
     }
 }
-
-
 
 @Composable
 fun ChatListContent(modifier: Modifier = Modifier) {
@@ -129,6 +185,44 @@ fun ChatListContent(modifier: Modifier = Modifier) {
     }
 
 }
+
+@Composable
+fun AddFriendDialog(
+    onAddFriend: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var email by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Friend") },
+        text = {
+            Column {
+                Text("Enter your friend's email address:")
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onAddFriend(email.trim())
+            }) {
+                Text("Add")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+
 
 
 
