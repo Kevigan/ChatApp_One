@@ -25,10 +25,12 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import com.example.chatapp_one.R
 import com.example.chatapp_one.viewModels.SessionViewModel
+import com.example.chatapp_one.viewModels.UserViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 
 @Composable
 fun LoginDialog(
+    userViewModel: UserViewModel,
     sessionViewModel: SessionViewModel,
     onLoginSuccess: () -> Unit,
     onDismiss: () -> Unit,
@@ -100,15 +102,33 @@ fun LoginDialog(
                     )
                 } else {
                     sessionViewModel.login(
-                        email.trim(), password,
-                        onSuccess = {
-                            Toast.makeText(context, "Login successful", Toast.LENGTH_SHORT).show()
-                            onLoginSuccess()
+                        email.trim(),
+                        password,
+                        onSuccess = { userId, displayName, email ->
+                            userViewModel.checkOrCreateUser(
+                                userId = userId,
+                                displayName = displayName,
+                                email = email,
+                                onUserExists = {
+                                    Toast.makeText(context, "Welcome back!", Toast.LENGTH_SHORT).show()
+                                    userViewModel.loadUser(userId)
+                                    onLoginSuccess()
+                                },
+                                onUserCreated = {
+                                    Toast.makeText(context, "User created in Firestore", Toast.LENGTH_SHORT).show()
+                                    userViewModel.loadUser(userId)
+                                    onLoginSuccess()
+                                },
+                                onError = {
+                                    Toast.makeText(context, "Error: ${it.message}", Toast.LENGTH_LONG).show()
+                                }
+                            )
                         },
                         onFailure = {
-                            Toast.makeText(context, "Login failed: ${it.message}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Login failed: ${it.message}", Toast.LENGTH_LONG).show()
                         }
                     )
+
                 }
             }) {
                 Text(text = if (isRegisterMode) "Register" else "Login", color = MaterialTheme.colors.onSurface)
@@ -155,7 +175,7 @@ fun ThemedTextField(
         label = {
             Text(
                 text = label,
-                color = MaterialTheme.colors.onSurface // ✅ Theme-aware label
+                color = MaterialTheme.colors.onSurface
             )
         },
         modifier = Modifier.fillMaxWidth(),

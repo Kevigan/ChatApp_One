@@ -10,18 +10,16 @@ import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
 import androidx.compose.material.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.chatapp_one.viewModels.UserViewModel
 
 @Composable
-fun FriendsView() {
-    val fakeFriends = remember {
-        listOf(
-            "Alice", "Bob", "Charlie", "Diana", "Edward",
-            "Fiona", "George", "Hannah", "Isaac", "Julia"
-        )
-    }
+fun FriendsView(userViewModel: UserViewModel) {
+
+    val userFriends by userViewModel.userFriends.collectAsState()
 
     Scaffold(
         topBar = {
@@ -30,17 +28,30 @@ fun FriendsView() {
             )
         }
     ) { paddingValues ->
+
         LazyColumn(
             modifier = Modifier.padding(paddingValues)
         ) {
-            items(fakeFriends) { friendName ->
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Text(text = friendName)
-                    Divider()
+            if (userFriends.isEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Text("No friends to show.")
+                    }
+                }
+            } else {
+                items(userFriends) { friendUser ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Text(text = friendUser.displayName)
+                        Divider()
+                    }
                 }
             }
         }

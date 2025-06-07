@@ -1,10 +1,14 @@
 package com.example.chatapp_one.viewModels
 
 import androidx.lifecycle.ViewModel
+import com.example.chatapp_one.data.User
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.EmailAuthProvider
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -78,13 +82,21 @@ class SessionViewModel : ViewModel() {
     fun login(
         email: String,
         password: String,
-        onSuccess: () -> Unit,
+        onSuccess: (userId: String, displayName: String, email: String) -> Unit,
         onFailure: (Exception) -> Unit
     ) {
         auth.signInWithEmailAndPassword(email, password)
-            .addOnSuccessListener { onSuccess() }
+            .addOnSuccessListener { result ->
+                val firebaseUser = auth.currentUser
+                val userId = firebaseUser?.uid ?: return@addOnSuccessListener
+                val displayName = firebaseUser.displayName ?: email.substringBefore("@")
+                val userEmail = firebaseUser.email ?: email
+
+                onSuccess(userId, displayName, userEmail)
+            }
             .addOnFailureListener { onFailure(it) }
     }
+
 
     fun register(
         email: String,
@@ -93,7 +105,70 @@ class SessionViewModel : ViewModel() {
         onFailure: (Exception) -> Unit
     ) {
         auth.createUserWithEmailAndPassword(email, password)
+            .addOnSuccessListener { result ->
+                val userId = result.user?.uid ?: return@addOnSuccessListener
+                val displayName = email.substringBefore("@")
+
+                //create the user in Firestore:
+                createUserInFirestore(
+                    userId = userId,
+                    displayName = displayName,
+                    email = email,
+                    onSuccess = { onSuccess() },
+                    onFailure = { onFailure(it) }
+                )
+            }
+            .addOnFailureListener { onFailure(it) }
+    }
+
+    // when registered via email
+    fun createUserInFirestore(
+        userId: String,
+        displayName: String,
+        email: String,
+        onSuccess: () -> Unit = {},
+        onFailure: (Exception) -> Unit = {}
+    ) {
+        val user = User(
+            userId = userId,
+            displayName = displayName,
+            email = email,
+            friends = emptyList(),
+            createdAt = Timestamp.now()
+        )
+
+        Firebase.firestore
+            .collection("users")
+            .document(userId)
+            .set(user)
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { onFailure(it) }
+    }
+
+    fun handleGoogleSignInResult(
+        resultData: android.content.Intent?,
+        onSuccess: (userId: String, displayName: String, email: String) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        try {
+            val task = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(resultData)
+            val account = task.getResult(com.google.android.gms.common.api.ApiException::class.java)
+            val credential = com.google.firebase.auth.GoogleAuthProvider.getCredential(account.idToken, null)
+
+            com.google.firebase.auth.FirebaseAuth.getInstance().signInWithCredential(credential)
+                .addOnSuccessListener {
+                    val firebaseUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                    val userId = firebaseUser?.uid ?: return@addOnSuccessListener
+                    val displayName = firebaseUser.displayName ?: ""
+                    val email = firebaseUser.email ?: ""
+
+                    onSuccess(userId, displayName, email)
+                }
+                .addOnFailureListener { e ->
+                    onError(e)
+                }
+        } catch (e: com.google.android.gms.common.api.ApiException) {
+            onError(e)
+        }
     }
 }

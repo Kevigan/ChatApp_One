@@ -9,6 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.chatapp_one.viewModels.SessionViewModel
+import com.example.chatapp_one.viewModels.UserViewModel
 import com.example.chatapp_one.views.AccountView
 import com.example.chatapp_one.views.ChatAppMainView
 import com.example.chatapp_one.views.FriendsView
@@ -17,7 +18,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient
 
 @Composable
 fun Navigation(
-    sessionViewModel: SessionViewModel = viewModel(),
+    userViewModel: UserViewModel,
+    sessionViewModel: SessionViewModel,
     navController: NavHostController = rememberNavController(),
     googleSignInClient: GoogleSignInClient,
     googleSignInLauncher: ActivityResultLauncher<Intent>,
@@ -25,6 +27,7 @@ fun Navigation(
     NavHost(navController = navController, startDestination = Screen.MainScreen.route){
         composable(Screen.MainScreen.route){
             ChatAppMainView(
+                userViewModel = userViewModel,
                 sessionViewModel = sessionViewModel,
                 navController = navController,
                 googleSignInClient = googleSignInClient,
@@ -33,7 +36,7 @@ fun Navigation(
         }
 
         composable(Screen.AccountScreen.route){
-            AccountView(sessionViewModel = sessionViewModel, navController = navController)
+            AccountView(userViewModel = userViewModel ,sessionViewModel = sessionViewModel, navController = navController)
         }
 
         composable(Screen.SettingsScreen.route){
@@ -41,7 +44,7 @@ fun Navigation(
         }
 
         composable(Screen.FriendsScreen.route){
-            FriendsView()
+            FriendsView(userViewModel)
         }
     }
 }

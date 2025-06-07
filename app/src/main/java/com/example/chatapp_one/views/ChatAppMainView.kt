@@ -1,6 +1,7 @@
 package com.example.chatapp_one.views
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
@@ -37,10 +38,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,25 +51,37 @@ import androidx.navigation.NavController
 import com.example.chatapp_one.R
 import com.example.chatapp_one.Screen
 import com.example.chatapp_one.viewModels.SessionViewModel
+import com.example.chatapp_one.viewModels.UserViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import kotlinx.coroutines.launch
 
 @Composable
 fun ChatAppMainView(
+    userViewModel: UserViewModel,
     sessionViewModel: SessionViewModel,
     navController: NavController,
     googleSignInClient: GoogleSignInClient,
     googleSignInLauncher: ActivityResultLauncher<Intent>,
 ) {
-    val currentUser by sessionViewModel.currentUser.collectAsState()
-    val showLoginDialog = remember { mutableStateOf(currentUser == null) }
+    val currentUser by sessionViewModel.currentUser.collectAsState() //auth
+    val user by userViewModel.user.collectAsState() //firebase
 
+    val showLoginDialog = remember { mutableStateOf(currentUser == null) }
+    val showSignOutDialog = remember { mutableStateOf(false) }
+    val context = LocalContext.current
     // Watch for auth changes to control login dialog
     LaunchedEffect(currentUser) {
         showLoginDialog.value = currentUser == null
+
+        val uid = currentUser?.uid
+        if (uid != null) {
+            userViewModel.loadUser(uid)
+        }
     }
 
     if (showLoginDialog.value) {
         LoginDialog(
+            userViewModel = userViewModel,
             onLoginSuccess = { showLoginDialog.value = false },
             onDismiss = { },
             sessionViewModel = sessionViewModel,
@@ -75,20 +90,46 @@ fun ChatAppMainView(
         )
     }
 
+    val coroutineScope = rememberCoroutineScope()
     val showAddFriendDialog = remember { mutableStateOf(false) }
 
     if (showAddFriendDialog.value) {
         AddFriendDialog(
             onAddFriend = { email ->
-                // TODO: handle adding friend (Firebase lookup etc.)
-                showAddFriendDialog.value = false
-            },
+                coroutineScope.launch {
+                    val currentUserId = user?.userId
+                    if (currentUserId == null) {
+                        Toast.makeText(context, "Error: user not loaded", Toast.LENGTH_SHORT).show()
+                        return@launch
+                    }
+
+                    userViewModel.addFriendByEmail(
+                        currentUserId = currentUserId,
+                        friendEmail = email,
+                        onSuccess = {
+                            Toast.makeText(context, "Friend added!", Toast.LENGTH_SHORT).show()
+                            showAddFriendDialog.value = false
+                        },
+                        onUserNotFound = {
+                            Toast.makeText(context, "User not found", Toast.LENGTH_SHORT).show()
+                        },
+                        onFailure = {
+                            Toast.makeText(context, "Error adding friend: ${it.message}", Toast.LENGTH_LONG).show()
+                        }
+                    )
+                }
+            }
+            ,
             onDismiss = { showAddFriendDialog.value = false }
         )
+
     }
 
     Scaffold(
-        topBar = { ChatAppTopBar() },
+        topBar = { ChatAppTopBar(
+            displayName = user?.displayName ?: "Loading...",
+            onSignOutClicked = { showSignOutDialog.value = true }
+        ) },
         bottomBar = {
             ChatAppBottomBar(
                 navController,
@@ -104,16 +145,37 @@ fun ChatAppMainView(
     ) { innerPadding ->
         ChatListContent(modifier = Modifier.padding(innerPadding))
     }
+    //Show signout dialog
+    if (showSignOutDialog.value) {
+        SignOutDialog(
+            onConfirmSignOut = {
+                sessionViewModel.signOut()
+                showSignOutDialog.value = false
+            },
+            onDismiss = { showSignOutDialog.value = false }
+        )
+    }
+
 }
 
 @Composable
-fun ChatAppTopBar() {
+fun ChatAppTopBar(displayName: String, onSignOutClicked: () -> Unit) {
     TopAppBar(
-        title = { Text("ChatApp") },
+        title = { Text("ChatApp - $displayName") },
         backgroundColor = MaterialTheme.colors.primary,
-        contentColor = Color.White
+        contentColor = Color.White,
+        actions = {
+            IconButton(onClick = onSignOutClicked) {
+                Icon(
+                    painter = painterResource(id = R.drawable.baseline_logout_24),
+                    contentDescription = "Sign Out",
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
     )
 }
+
 
 @Composable
 fun ChatAppBottomBar(
@@ -209,7 +271,9 @@ fun AddFriendDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                onAddFriend(email.trim())
+                if (email.isNotBlank()) {
+                    onAddFriend(email.trim())
+                }
             }) {
                 Text("Add")
             }
@@ -217,6 +281,28 @@ fun AddFriendDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun SignOutDialog(
+    onConfirmSignOut: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Sign Out") },
+        text = { Text("Are you sure you want to sign out?") },
+        confirmButton = {
+            TextButton(onClick = onConfirmSignOut) {
+                Text("Yes")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("No")
             }
         }
     )

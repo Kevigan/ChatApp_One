@@ -28,10 +28,12 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.chatapp_one.Screen
 import com.example.chatapp_one.viewModels.SessionViewModel
+import com.example.chatapp_one.viewModels.UserViewModel
 import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 
 @Composable
 fun AccountView(
+    userViewModel: UserViewModel,
     sessionViewModel: SessionViewModel,
     navController: NavController
 ) {
@@ -97,30 +99,38 @@ fun AccountView(
             if (showDeleteDialog.value) {
                 DeleteAccountDialog(
                     onConfirm = {
-                        // Commented out since deleteAccountWithTasks doesn't exist:
-                        /*
-                        sessionViewModel.deleteAccountWithTasks(
-                            taskViewModel = viewModel,
-                            onSuccess = {
-                                Toast.makeText(context, "Account deleted", Toast.LENGTH_SHORT).show()
-                                navController.navigate(Screen.HomeScreen.route) {
-                                    popUpTo(Screen.HomeScreen.route) { inclusive = true }
+                        val firebaseUser = sessionViewModel.currentUser.value
+                        val userId = firebaseUser?.uid
+
+                        if (userId != null) {
+                            userViewModel.deleteUser(
+                                userId = userId,
+                                onSuccess = {
+                                    sessionViewModel.deleteUser(
+                                        onSuccess = {
+                                            Toast.makeText(context, "Account deleted", Toast.LENGTH_SHORT).show()
+                                            navController.navigate(Screen.MainScreen.route) {
+                                                popUpTo(Screen.MainScreen.route) { inclusive = true }
+                                            }
+                                        },
+                                        onFailure = { e ->
+                                            Toast.makeText(context, "Failed to delete Auth user: ${e.message}", Toast.LENGTH_LONG).show()
+                                        }
+                                    )
+                                },
+                                onFailure = { e ->
+                                    Toast.makeText(context, "Failed to delete Firestore user: ${e.message}", Toast.LENGTH_LONG).show()
                                 }
-                            },
-                            onFailure = { e ->
-                                if (e is FirebaseAuthRecentLoginRequiredException) {
-                                    showReauthDialog.value = true
-                                } else {
-                                    Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_LONG).show()
-                                }
-                            }
-                        )
-                        */
-                        Toast.makeText(context, "Account delete not implemented", Toast.LENGTH_SHORT).show()
+                            )
+                        } else {
+                            Toast.makeText(context, "No user found", Toast.LENGTH_SHORT).show()
+                        }
+
                         showDeleteDialog.value = false
                     },
                     onDismiss = { showDeleteDialog.value = false }
                 )
+
             }
 
             // Re-authentication Dialog
