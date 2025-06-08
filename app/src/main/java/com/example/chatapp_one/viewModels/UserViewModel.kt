@@ -2,8 +2,8 @@ package com.example.chatapp_one.viewModels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.chatapp_one.data.User
-import com.example.chatapp_one.data.UserRepository
+import com.example.chatapp_one.data.users.User
+import com.example.chatapp_one.data.users.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

@@ -5,9 +5,11 @@ import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -50,6 +52,8 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.chatapp_one.R
 import com.example.chatapp_one.Screen
+import com.example.chatapp_one.data.users.chats.Chat
+import com.example.chatapp_one.viewModels.ChatViewModel
 import com.example.chatapp_one.viewModels.SessionViewModel
 import com.example.chatapp_one.viewModels.UserViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -59,12 +63,14 @@ import kotlinx.coroutines.launch
 fun ChatAppMainView(
     userViewModel: UserViewModel,
     sessionViewModel: SessionViewModel,
+    chatViewModel: ChatViewModel,
     navController: NavController,
     googleSignInClient: GoogleSignInClient,
     googleSignInLauncher: ActivityResultLauncher<Intent>,
 ) {
     val currentUser by sessionViewModel.currentUser.collectAsState() //auth
     val user by userViewModel.user.collectAsState() //firebase
+    val currentChatUser by userViewModel.user.collectAsState()
 
     val showLoginDialog = remember { mutableStateOf(currentUser == null) }
     val showSignOutDialog = remember { mutableStateOf(false) }
@@ -143,7 +149,12 @@ fun ChatAppMainView(
         },
         floatingActionButtonPosition = FabPosition.End,
     ) { innerPadding ->
-        ChatListContent(modifier = Modifier.padding(innerPadding))
+        ChatListContent(
+            currentUserId = currentChatUser?.userId ?: "",
+            chatViewModel = chatViewModel,
+            navController = navController,
+            contentPadding = innerPadding  // pass it down!
+        )
     }
     //Show signout dialog
     if (showSignOutDialog.value) {
@@ -218,34 +229,54 @@ fun BottomBarButton(label: String, @DrawableRes iconRes: Int, onClick: () -> Uni
 }
 
 @Composable
-fun ChatListContent(modifier: Modifier = Modifier) {
-    val sampleChats = remember {
-        listOf("Alice", "Bob", "Charlie", "Dev Group", "Study Buddies")
+fun ChatListContent(
+    currentUserId: String,
+    chatViewModel: ChatViewModel,
+    navController: NavController,
+    contentPadding: PaddingValues = PaddingValues()
+) {
+    val chats by chatViewModel.chats.collectAsState()
+
+    // Load chats when this view appears
+    LaunchedEffect(currentUserId) {
+        chatViewModel.loadChatsForUser(currentUserId)
     }
 
-    Box(modifier = modifier.fillMaxSize().background(Color.White)) {
-        LazyColumn {
-            items(sampleChats, key = { it }) { chatName ->
-                Column(modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)) {
-                    Text(
-                        text = chatName,
-                        color =  MaterialTheme.colors.primary,
-                        fontSize = 16.sp
-                    )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Chats",
+            style = MaterialTheme.typography.h6,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
 
-                    Text(
-                        text = "Last message preview...",
-                        style = MaterialTheme.typography.body2,
-                        color = Color.Gray
+        if (chats.isEmpty()) {
+            // No chats → show message
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No chat started yet")
+            }
+        } else {
+            // Show chat list
+            LazyColumn {
+                items(chats) { chat ->
+                    ChatListItem(
+                        chat = chat,
+                        currentUserId = currentUserId,
+                        onClick = {
+                            navController.navigate(Screen.ChatScreen.routeWithArgs(chat.chatId))
+                        }
                     )
+                    Divider()
                 }
-                Divider()
             }
         }
     }
-
 }
 
 @Composable
@@ -306,6 +337,39 @@ fun SignOutDialog(
             }
         }
     )
+}
+
+@Composable
+fun ChatListItem(
+    chat: Chat,
+    currentUserId: String,
+    onClick: () -> Unit
+) {
+    val chatTitle = if (chat.groupChat) {
+        chat.groupName ?: "Group Chat"
+    } else {
+        val otherUserId = chat.participants.firstOrNull { it != currentUserId }
+        chat.participantDisplayNames[otherUserId] ?: "Private Chat"
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(12.dp)
+    ) {
+        Text(
+            text = chatTitle,
+            style = MaterialTheme.typography.subtitle1
+        )
+        if (chat.lastMessage.isNotBlank()) {
+            Text(
+                text = chat.lastMessage,
+                style = MaterialTheme.typography.body2,
+                color = Color.Gray
+            )
+        }
+    }
 }
 
 

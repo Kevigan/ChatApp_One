@@ -1,7 +1,7 @@
 package com.example.chatapp_one.viewModels
 
 import androidx.lifecycle.ViewModel
-import com.example.chatapp_one.data.User
+import com.example.chatapp_one.data.users.User
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth

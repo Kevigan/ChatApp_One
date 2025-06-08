@@ -1,5 +1,6 @@
 package com.example.chatapp_one.views
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,14 +13,25 @@ import androidx.compose.material.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import com.example.chatapp_one.Screen
+import com.example.chatapp_one.viewModels.ChatViewModel
 import com.example.chatapp_one.viewModels.UserViewModel
+import kotlinx.coroutines.launch
 
 @Composable
-fun FriendsView(userViewModel: UserViewModel) {
-
+fun FriendsView(
+    userViewModel: UserViewModel,
+    chatViewModel: ChatViewModel,
+    navController: NavController,
+) {
     val userFriends by userViewModel.userFriends.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+    val currentUser by userViewModel.user.collectAsState()
+
 
     Scaffold(
         topBar = {
@@ -48,6 +60,20 @@ fun FriendsView(userViewModel: UserViewModel) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp)
+                            .clickable {
+                                coroutineScope.launch {
+                                    try {
+                                        val chatId = chatViewModel.getOrCreatePrivateChat(
+                                            userA = currentUser?.userId ?: return@launch, // fallback to early return if null
+                                            userB = friendUser.userId
+                                        )
+                                        navController.navigate(Screen.ChatScreen.routeWithArgs(chatId))
+
+                                    } catch (e: Exception) {
+                                        // optional: show toast or log error
+                                    }
+                                }
+                            }
                     ) {
                         Text(text = friendUser.displayName)
                         Divider()
@@ -57,3 +83,4 @@ fun FriendsView(userViewModel: UserViewModel) {
         }
     }
 }
+

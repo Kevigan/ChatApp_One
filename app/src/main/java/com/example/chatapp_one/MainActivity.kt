@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.view.WindowCompat
 import com.example.chatapp_one.ui.theme.ChatApp_OneTheme
+import com.example.chatapp_one.viewModels.ChatViewModel
 import com.example.chatapp_one.viewModels.SessionViewModel
 import com.example.chatapp_one.viewModels.UserViewModel
 import com.example.chatapp_one.views.ChatAppMainView
@@ -33,6 +34,7 @@ class MainActivity : ComponentActivity() {
 
         val sessionViewModel: SessionViewModel by viewModels()
         val userViewModel: UserViewModel by viewModels()
+        val chatViewModel: ChatViewModel by viewModels()
 
         setContent {
             val context = LocalContext.current
@@ -84,6 +86,7 @@ class MainActivity : ComponentActivity() {
                    Navigation(
                        userViewModel = userViewModel,
                        sessionViewModel = sessionViewModel,
+                       chatViewModel,
                        googleSignInClient = googleSignInClient,
                        googleSignInLauncher = launcher
                    )

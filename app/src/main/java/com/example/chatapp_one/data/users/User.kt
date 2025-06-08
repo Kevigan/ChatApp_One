@@ -1,4 +1,4 @@
-package com.example.chatapp_one.data
+package com.example.chatapp_one.data.users
 
 import com.google.firebase.Timestamp
 

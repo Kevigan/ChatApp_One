@@ -8,4 +8,9 @@ sealed class Screen(val route: String, val title: String) {
     object AccountScreen : Screen("account_screen", "Account")
     object SettingsScreen : Screen("settings_screen", "Settings")
     object FriendsScreen : Screen("friends_screen", "Friends")
+    object ChatScreen : Screen("chat_screen", "Chat") {
+        fun routeWithArgs(chatId: String): String = "chat_screen/$chatId"
+        const val routeWithPlaceholder = "chat_screen/{chatId}"
+    }
+
 }
