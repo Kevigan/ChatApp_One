@@ -12,5 +12,5 @@ sealed class Screen(val route: String, val title: String) {
         fun routeWithArgs(chatId: String): String = "chat_screen/$chatId"
         const val routeWithPlaceholder = "chat_screen/{chatId}"
     }
-
+    object GroupChatCreateScreen : Screen("groupChatCreate", "GroupChatCreate")
 }

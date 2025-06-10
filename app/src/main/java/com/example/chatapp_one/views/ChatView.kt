@@ -1,11 +1,9 @@
 package com.example.chatapp_one.views
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
@@ -13,12 +11,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.example.chatapp_one.R
 import com.example.chatapp_one.utility.formatTimestamp
 import com.example.chatapp_one.viewModels.ChatViewModel
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.draw.drawBehind
+
 
 @Composable
 fun ChatView(
@@ -33,6 +36,10 @@ fun ChatView(
     var messageText by remember { mutableStateOf("") }
     val coroutineScope = rememberCoroutineScope()
 
+    var showDialog by remember { mutableStateOf(false) }
+
+    val imageBitmap = ImageBitmap.imageResource(id = R.drawable.background_image_1)
+
     // Load chat info when entering the screen
     LaunchedEffect(chatId) {
         chatViewModel.loadChat(chatId)
@@ -41,22 +48,59 @@ fun ChatView(
     Scaffold(
         topBar = {
             TopAppBar(
+                backgroundColor = MaterialTheme.colors.primaryVariant,
                 title = {
                     Text(
                         text = when {
                             chat == null -> "Loading chat..."
                             chat!!.groupChat == true -> chat!!.groupName ?: "Group Chat"
                             else -> {
-                                val otherUserId = chat!!.participants.firstOrNull { it != currentUserId }
-                                val otherUserName = chat!!.participantDisplayNames[otherUserId] ?: otherUserId ?: "Chat"
+                                val otherUserId =
+                                    chat!!.participants.firstOrNull { it != currentUserId }
+                                val otherUserName =
+                                    chat!!.participantDisplayNames[otherUserId] ?: otherUserId
+                                    ?: "Chat"
                                 "Chat with $otherUserName"
                             }
                         }
                     )
+                },
+                actions = {
+                    if (chat?.groupChat == true) {
+                        IconButton(onClick = { showDialog = true }) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.baseline_people_24),
+                                contentDescription = "Logout"
+                            )
+                        }
+                    }
                 }
             )
         }
     ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+                .drawBehind {
+                    val imageWidth = imageBitmap.width.toFloat()
+                    val imageHeight = imageBitmap.height.toFloat()
+
+                    var y = 0f
+                    while (y < size.height) {
+                        var x = 0f
+                        while (x < size.width) {
+                            drawImage(
+                                image = imageBitmap,
+                                topLeft = androidx.compose.ui.geometry.Offset(x, y)
+                            )
+                            x += imageWidth
+                        }
+                        y += imageHeight
+                    }
+                }
+        )
+
         Column(
             modifier = Modifier
                 .padding(paddingValues)
@@ -92,7 +136,6 @@ fun ChatView(
                                 )
                             }
                         }
-
                     }
                 }
             }
@@ -108,8 +151,10 @@ fun ChatView(
                 TextField(
                     value = messageText,
                     onValueChange = { messageText = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Type a message...") },
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(Color(0xFF222222), shape = MaterialTheme.shapes.small), // optional: rounded dark bg
+                    placeholder = { Text("Type a message...", color = Color.Gray) },
                     keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(
                         onSend = {
@@ -124,8 +169,15 @@ fun ChatView(
                                 }
                             }
                         }
+                    ),
+                    colors = TextFieldDefaults.textFieldColors(
+                        backgroundColor = Color(0x33FFFFFF), // dark background
+                        textColor = Color.White,              // white text
+                        cursorColor = Color.White,            // white cursor
+                        placeholderColor = Color.Gray         // gray placeholder
                     )
                 )
+
 
                 Spacer(modifier = Modifier.width(8.dp))
 
@@ -146,4 +198,37 @@ fun ChatView(
             }
         }
     }
+
+    // Show Group Members Dialog if requested
+    if (showDialog && chat != null) {
+        GroupMembersDialog(
+            memberNames = chat!!.participantDisplayNames.values.toList(),
+            onDismiss = { showDialog = false }
+        )
+    }
 }
+
+@Composable
+fun GroupMembersDialog(
+    memberNames: List<String>,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        backgroundColor = MaterialTheme.colors.primaryVariant,
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("OK")
+            }
+        },
+        title = { Text("Group Members") },
+        text = {
+            Column {
+                memberNames.forEach { name ->
+                    Text("• $name")
+                }
+            }
+        }
+    )
+}
+

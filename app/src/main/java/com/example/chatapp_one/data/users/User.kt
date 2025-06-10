@@ -7,5 +7,7 @@ data class User(
     val displayName: String = "",
     val email: String = "",
     val friends: List<String> = emptyList(),
-    val createdAt: Timestamp? = null
+    val createdAt: Timestamp? = null,
+    val avatar: String = "avatar_1"
 )
+

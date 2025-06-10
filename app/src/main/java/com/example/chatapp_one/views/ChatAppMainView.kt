@@ -4,6 +4,7 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,12 +12,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.AlertDialog
@@ -44,7 +47,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -58,6 +63,10 @@ import com.example.chatapp_one.viewModels.SessionViewModel
 import com.example.chatapp_one.viewModels.UserViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.shape.CircleShape
+import com.example.chatapp_one.data.users.User
+import com.example.chatapp_one.utility.AvatarUtils
+
 
 @Composable
 fun ChatAppMainView(
@@ -71,10 +80,12 @@ fun ChatAppMainView(
     val currentUser by sessionViewModel.currentUser.collectAsState() //auth
     val user by userViewModel.user.collectAsState() //firebase
     val currentChatUser by userViewModel.user.collectAsState()
+    val friends by userViewModel.friends.collectAsState()
 
     val showLoginDialog = remember { mutableStateOf(currentUser == null) }
     val showSignOutDialog = remember { mutableStateOf(false) }
     val context = LocalContext.current
+
     // Watch for auth changes to control login dialog
     LaunchedEffect(currentUser) {
         showLoginDialog.value = currentUser == null
@@ -143,17 +154,34 @@ fun ChatAppMainView(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { /* TODO: Start new chat */ }) {
+            FloatingActionButton(onClick = {
+                navController.navigate(Screen.GroupChatCreateScreen.route)
+            }) {
                 Icon(Icons.Default.Add, contentDescription = "New Chat")
             }
         },
         floatingActionButtonPosition = FabPosition.End,
     ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.background_0),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+
+        }
+
         ChatListContent(
             currentUserId = currentChatUser?.userId ?: "",
             chatViewModel = chatViewModel,
             navController = navController,
-            contentPadding = innerPadding  // pass it down!
+            friends = friends,
+            contentPadding = innerPadding
         )
     }
     //Show signout dialog
@@ -173,7 +201,7 @@ fun ChatAppMainView(
 fun ChatAppTopBar(displayName: String, onSignOutClicked: () -> Unit) {
     TopAppBar(
         title = { Text("ChatApp - $displayName") },
-        backgroundColor = MaterialTheme.colors.primary,
+        backgroundColor = MaterialTheme.colors.primaryVariant,
         contentColor = Color.White,
         actions = {
             IconButton(onClick = onSignOutClicked) {
@@ -194,6 +222,7 @@ fun ChatAppBottomBar(
     onAddFriendClicked: () -> Unit,
 ) {
     BottomAppBar(
+        backgroundColor = MaterialTheme.colors.primaryVariant,
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding().height(70.dp)
@@ -215,15 +244,16 @@ fun ChatAppBottomBar(
 @Composable
 fun BottomBarButton(label: String, @DrawableRes iconRes: Int, onClick: () -> Unit) {
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(8.dp) // optional padding for touch target
     ) {
-        IconButton(onClick = onClick) {
-            Icon(
-                painter = painterResource(id = iconRes),
-                contentDescription = label,
-                modifier = Modifier.size(24.dp)
-            )
-        }
+        Icon(
+            painter = painterResource(id = iconRes),
+            contentDescription = label,
+            modifier = Modifier.size(24.dp)
+        )
         Text(text = label, fontSize = 10.sp)
     }
 }
@@ -233,6 +263,7 @@ fun ChatListContent(
     currentUserId: String,
     chatViewModel: ChatViewModel,
     navController: NavController,
+    friends: List<User>,
     contentPadding: PaddingValues = PaddingValues()
 ) {
     val chats by chatViewModel.chats.collectAsState()
@@ -245,7 +276,7 @@ fun ChatListContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(8.dp)
     ) {
         Text(
             text = "Chats",
@@ -268,6 +299,7 @@ fun ChatListContent(
                     ChatListItem(
                         chat = chat,
                         currentUserId = currentUserId,
+                        friends = friends, // pass friends here!
                         onClick = {
                             navController.navigate(Screen.ChatScreen.routeWithArgs(chat.chatId))
                         }
@@ -289,6 +321,7 @@ fun AddFriendDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add Friend") },
+        backgroundColor = MaterialTheme.colors.primaryVariant,
         text = {
             Column {
                 Text("Enter your friend's email address:")
@@ -343,34 +376,65 @@ fun SignOutDialog(
 fun ChatListItem(
     chat: Chat,
     currentUserId: String,
+    friends: List<User>,
     onClick: () -> Unit
-) {
+){
+    val otherUserId = chat.participants.firstOrNull { it != currentUserId }
+
     val chatTitle = if (chat.groupChat) {
         chat.groupName ?: "Group Chat"
     } else {
-        val otherUserId = chat.participants.firstOrNull { it != currentUserId }
         chat.participantDisplayNames[otherUserId] ?: "Private Chat"
     }
 
-    Column(
+    val avatarResId = if (chat.groupChat) {
+        R.drawable.avatar_group
+    } else {
+        val friendUser = friends.firstOrNull { it.userId == otherUserId }
+        val avatarString = friendUser?.avatar ?: "avatar_1"
+        AvatarUtils.getAvatarDrawableRes(avatarString)
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .background(Color.LightGray.copy(alpha = 0.4f), shape = MaterialTheme.shapes.medium)
             .clickable(onClick = onClick)
             .padding(12.dp)
     ) {
-        Text(
-            text = chatTitle,
-            style = MaterialTheme.typography.subtitle1
-        )
-        if (chat.lastMessage.isNotBlank()) {
-            Text(
-                text = chat.lastMessage,
-                style = MaterialTheme.typography.body2,
-                color = Color.Gray
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Round image (avatar)
+            Image(
+                painter = painterResource(id = avatarResId),
+                contentDescription = "Avatar",
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
             )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Existing Column with chatTitle and lastMessage
+            Column {
+                Text(
+                    text = chatTitle,
+                    style = MaterialTheme.typography.subtitle1
+                )
+                if (chat.lastMessage.isNotBlank()) {
+                    Text(
+                        text = chat.lastMessage,
+                        style = MaterialTheme.typography.body2,
+                        color = Color.Gray
+                    )
+                }
+            }
         }
     }
 }
+
+
+
 
 
 

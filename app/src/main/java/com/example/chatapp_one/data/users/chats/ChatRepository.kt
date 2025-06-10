@@ -28,6 +28,14 @@ class ChatRepository {
             .get()
             .await()
 
+        val userAAvatar = getUserAvatar(userA)
+        val userBAvatar = getUserAvatar(userB)
+
+        val participantAvatars = mapOf(
+            userA to userAAvatar,
+            userB to userBAvatar
+        )
+
         if (!existingChats.isEmpty) {
             println("Chatview ChatKey exists: $chatKey")
             return existingChats.documents.first().id
@@ -52,7 +60,8 @@ class ChatRepository {
             createdBy = userA,
             createdAt = Timestamp.now(),
             chatKey = chatKey,
-            participantDisplayNames = participantDisplayNames
+            participantDisplayNames = participantDisplayNames,
+            participantAvatars = participantAvatars
         )
 
         newChatRef.set(chat).await()
@@ -74,19 +83,34 @@ class ChatRepository {
     ): String {
         val newChatRef = chatsCollection.document()
 
+        // Build participantDisplayNames map
+        val participantDisplayNames = mutableMapOf<String, String>()
+        val participantAvatars = mutableMapOf<String, String>()
+
+        for (userId in participants) {
+            val displayName = getUserDisplayName(userId)
+            val avatar = getUserAvatar(userId)
+
+            participantDisplayNames[userId] = displayName
+            participantAvatars[userId] = avatar
+        }
+
         val chat = Chat(
             chatId = newChatRef.id,
             participants = participants,
             groupChat = true,
             groupName = groupName,
             createdBy = createdBy,
-            createdAt = Timestamp.now()
+            createdAt = Timestamp.now(),
+            participantDisplayNames = participantDisplayNames,
+            participantAvatars = participantAvatars
         )
 
         newChatRef.set(chat).await()
 
         return newChatRef.id
     }
+
 
     suspend fun sendMessage(chatId: String, senderId: String, text: String) {
         val newMessageRef = messagesCollection(chatId).document()
@@ -145,6 +169,12 @@ class ChatRepository {
         val userDoc = Firebase.firestore.collection("users").document(userId).get().await()
         return userDoc.getString("displayName") ?: "Unknown"
     }
+
+    suspend fun getUserAvatar(userId: String): String {
+        val userDoc = Firebase.firestore.collection("users").document(userId).get().await()
+        return userDoc.getString("avatar") ?: "avatar_1"
+    }
+
 
     suspend fun deleteChat(chatId: String) {
         chatsCollection.document(chatId).delete().await()

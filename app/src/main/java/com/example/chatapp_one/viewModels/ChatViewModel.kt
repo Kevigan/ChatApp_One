@@ -47,8 +47,11 @@ class ChatViewModel(
 
     // Create group chat and return chatId
     suspend fun createGroupChat(participants: List<String>, groupName: String, createdBy: String): String {
-        return chatRepository.createGroupChat(participants, groupName, createdBy)
+        val chatId = chatRepository.createGroupChat(participants, groupName, createdBy)
+        loadChatsForUser(createdBy) // reload chat list so new chat appears immediately
+        return chatId
     }
+
 
     // Send message
     fun sendMessage(chatId: String, senderId: String, text: String, onSuccess: () -> Unit = {}, onFailure: (Exception) -> Unit = {}) {

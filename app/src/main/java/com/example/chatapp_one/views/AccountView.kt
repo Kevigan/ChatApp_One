@@ -1,11 +1,19 @@
 package com.example.chatapp_one.views
 
+import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
@@ -21,15 +29,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.chatapp_one.R
 import com.example.chatapp_one.Screen
 import com.example.chatapp_one.viewModels.SessionViewModel
 import com.example.chatapp_one.viewModels.UserViewModel
-import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
+import com.example.chatapp_one.utility.AvatarUtils
+
 
 @Composable
 fun AccountView(
@@ -44,15 +57,30 @@ fun AccountView(
     val showReauthDialog = remember { mutableStateOf(false) }
     val showChangePasswordDialog = remember { mutableStateOf(false) }
 
+    val showAvatarPickerDialog = remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             androidx.compose.material.TopAppBar(
                 title = { Text("Account") },
-                backgroundColor = MaterialTheme.colors.primary,
+                backgroundColor = MaterialTheme.colors.primaryVariant,
                 contentColor = MaterialTheme.colors.onPrimary
             )
         }
     ) { padding ->
+        Box(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.background_0),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+
+        }
         Column(
             modifier = Modifier
                 .padding(padding)
@@ -63,6 +91,54 @@ fun AccountView(
                 color = Color.Black,
                 style = MaterialTheme.typography.subtitle1
             )
+            // Avatar Row
+            Row(
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        showAvatarPickerDialog.value = true
+                    }
+                    .padding(8.dp)
+            ) {
+                val avatarResId = AvatarUtils.getAvatarDrawableRes(userViewModel.user.value?.avatar ?: "avatar_1")
+                Image(
+                    painter = painterResource(id = avatarResId),
+                    contentDescription = "Avatar",
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                )
+
+                Spacer(modifier = Modifier.padding(start = 12.dp))
+
+                Text(
+                    text = "Set avatar",
+                    style = MaterialTheme.typography.subtitle1
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Display Name row
+            Row(
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                Text(
+                    text = "Display Name:",
+                    style = MaterialTheme.typography.subtitle1
+                )
+
+                Spacer(modifier = Modifier.padding(start = 12.dp))
+
+                Text(
+                    text = userViewModel.user.value?.displayName ?: "Display Name",
+                    style = MaterialTheme.typography.body1
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -184,10 +260,37 @@ fun AccountView(
                     )
                 }
             }
+            if (showAvatarPickerDialog.value) {
+                AvatarPickerDialog(
+                    avatarOptions = listOf("avatar_1", "avatar_2", "avatar_3", "avatar_4"),
+                    onAvatarSelected = { selectedAvatar ->
+                        val userId = currentUser?.uid
+                        if (userId != null) {
+                            userViewModel.updateUserAvatar(
+                                userId = userId,
+                                avatar = selectedAvatar,
+                                onSuccess = {
+                                    Toast.makeText(context, "Avatar updated", Toast.LENGTH_SHORT).show()
+                                },
+                                onError = { e ->
+                                    Toast.makeText(
+                                        context,
+                                        "Failed to update avatar: ${e.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            )
+                        } else {
+                            Toast.makeText(context, "No user ID found", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onDismiss = { showAvatarPickerDialog.value = false }
+                )
+            }
+
         }
     }
 }
-
 
 @Composable
 fun DeleteAccountDialog(
@@ -305,5 +408,49 @@ fun ChangePasswordDialog(
                 Text("Cancel")
             }
         }
+    )
+}
+
+@Composable
+fun AvatarPickerDialog(
+    avatarOptions: List<String>,
+    onAvatarSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Choose Avatar") },
+        text = {
+            Column {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                ) {
+                    avatarOptions.forEach { avatarOption ->
+                        val avatarResId = AvatarUtils.getAvatarDrawableRes(avatarOption)
+
+                        Image(
+                            painter = painterResource(id = avatarResId),
+                            contentDescription = avatarOption,
+                            modifier = Modifier
+                                .size(64.dp)
+                                .padding(4.dp)
+                                .clip(CircleShape)
+                                .clickable {
+                                    onAvatarSelected(avatarOption)
+                                    onDismiss()
+                                }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+        dismissButton = {}
     )
 }

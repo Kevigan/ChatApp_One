@@ -3,6 +3,8 @@ package com.example.chatapp_one
 import android.content.Intent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -17,6 +19,7 @@ import com.example.chatapp_one.views.AccountView
 import com.example.chatapp_one.views.ChatAppMainView
 import com.example.chatapp_one.views.ChatView
 import com.example.chatapp_one.views.FriendsView
+import com.example.chatapp_one.views.GroupChatCreateView
 import com.example.chatapp_one.views.SettingsView
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 
@@ -65,5 +68,18 @@ fun Navigation(
                 chatViewModel = chatViewModel
             )
         }
+
+        composable(Screen.GroupChatCreateScreen.route) {
+            // Observe userFriends here
+            val userFriends by userViewModel.friends.collectAsState()
+
+            GroupChatCreateView(
+                currentUserId = sessionViewModel.currentUser.value?.uid ?: "",
+                userFriends = userFriends,
+                chatViewModel = chatViewModel,
+                navController = navController
+            )
+        }
+
     }
 }

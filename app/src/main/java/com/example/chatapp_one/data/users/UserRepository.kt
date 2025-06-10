@@ -36,6 +36,18 @@ class UserRepository {
         usersCollection.document(userId).update(updatedData).await()
     }
 
+    suspend fun getUsersByIds(userIds: List<String>): List<User> {
+        if (userIds.isEmpty()) return emptyList()
+
+        val snapshot = Firebase.firestore.collection("users")
+            .whereIn("userId", userIds)
+            .get()
+            .await()
+
+        return snapshot.documents.mapNotNull { it.toObject(User::class.java) }
+    }
+
+
     suspend fun getUserIdByEmail(email: String): String? {
         val result = usersCollection
             .whereEqualTo("email", email)

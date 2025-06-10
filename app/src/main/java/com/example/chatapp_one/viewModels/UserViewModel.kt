@@ -1,5 +1,6 @@
 package com.example.chatapp_one.viewModels
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chatapp_one.data.users.User
@@ -16,28 +17,28 @@ class UserViewModel(
     private val _user = MutableStateFlow<User?>(null)
     val user: StateFlow<User?> = _user.asStateFlow()
 
-    private val _userFriends = MutableStateFlow<List<User>>(emptyList())
-    val userFriends: StateFlow<List<User>> = _userFriends.asStateFlow()
-
+    private val _friends = MutableStateFlow<List<User>>(emptyList())
+    val friends: StateFlow<List<User>> = _friends.asStateFlow()
 
     fun loadUser(userId: String) {
         viewModelScope.launch {
             val loadedUser = userRepository.getUser(userId)
             _user.value = loadedUser
 
-            // Now load friends
+            // Load friends using existing function
             if (loadedUser != null && loadedUser.friends.isNotEmpty()) {
-                val loadedFriends = mutableListOf<User>()
-                for (friendId in loadedUser.friends) {
-                    val friendUser = userRepository.getUser(friendId)
-                    if (friendUser != null) {
-                        loadedFriends.add(friendUser)
-                    }
-                }
-                _userFriends.value = loadedFriends
+                loadFriendsDetails(loadedUser.friends)
             } else {
-                _userFriends.value = emptyList()
+                _friends.value = emptyList()
             }
+        }
+    }
+
+
+    fun loadFriendsDetails(friendIds: List<String>) {
+        viewModelScope.launch {
+            val friendUsers = userRepository.getUsersByIds(friendIds)
+            _friends.value = friendUsers
         }
     }
 
@@ -73,6 +74,29 @@ class UserViewModel(
                 // Optionally reload user:
                 loadUser(userId)
             } catch (e: Exception) {
+                onError(e)
+            }
+        }
+    }
+
+    fun updateUserAvatar(
+        userId: String,
+        avatar: String,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                updateUser(
+                    userId = userId,
+                    updatedData = mapOf(
+                        "avatar" to avatar
+                    ),
+                    onSuccess = onSuccess,
+                    onError = onError
+                )
+            } catch (e: Exception) {
+                Log.e("AvatarUpdate", "Error updating avatar: ${e.message}")
                 onError(e)
             }
         }

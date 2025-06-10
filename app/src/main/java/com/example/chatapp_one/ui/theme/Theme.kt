@@ -12,21 +12,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-private val DarkColorPalette = darkColors(
-    primary = Color(0xFF81D4FA),
-    primaryVariant = PurpleGrey80,
-    secondary = Color(0xFF0A192F),
-    background = Color.Black,
-    surface = Color.Black,
-    onPrimary = Color.Black,
-    onSecondary = Color.Black,
-    onBackground = Color.White,
-    onSurface = Color.White
-)
-
 private val LightColorPalette = lightColors(
     primary = Color(0xFF81D4FA),
-    primaryVariant = PurpleGrey40,
+    primaryVariant = Color(0xFF222222),
     secondary = Color(0xFF81D4FA),
 
     background = Color(0xFFF5F5F5),      // soft light grey
@@ -49,7 +37,7 @@ fun ChatApp_OneTheme(
     darkTheme: Boolean = isSystemInDarkTheme(), // Detect system dark mode
     content: @Composable () -> Unit
 ) {
-    val colors = if (darkTheme) DarkColorPalette else LightColorPalette
+    val colors = LightColorPalette
 
     MaterialTheme(
         colors = colors,

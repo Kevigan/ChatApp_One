@@ -52,12 +52,18 @@ android {
 }
 
 dependencies {
+    implementation ("io.coil-kt:coil-compose:2.3.0")
+
+    implementation("androidx.compose.foundation:foundation:1.6.0-beta01")
+    implementation("androidx.compose.ui:ui-graphics:1.6.0-beta01")
+
     implementation("com.google.android.gms:play-services-auth:20.7.0")
 
-    implementation ("androidx.appcompat:appcompat:1.6.1")
+    implementation("androidx.appcompat:appcompat:1.6.1")
 
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
     implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-storage-ktx")
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
 
