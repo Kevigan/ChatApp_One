@@ -8,7 +8,7 @@ data class Chat(
     val groupChat: Boolean = false,
     val groupName: String? = null,
     val participantDisplayNames: Map<String, String> = emptyMap(),
-    val participantAvatars: Map<String, String> = emptyMap(), // <--- add this line
+    val participantAvatars: Map<String, String> = emptyMap(),
     val createdBy: String = "",
     val createdAt: Timestamp = Timestamp.now(),
     val chatKey: String? = null,
